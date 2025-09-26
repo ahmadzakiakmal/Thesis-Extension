@@ -1,0 +1,142 @@
+services:
+  l1-node0:
+    image: l1-node:latest
+    container_name: l1-node0
+    ports:
+      - "5000:5000"
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./node-config/node0:/root/.cometbft
+    command: 
+      - "/app/bin"
+      - "--cmt-home=/root/.cometbft"
+      - "--http-port=5000"
+      - "--postgres-host=l1-postgres0:5432"
+    depends_on:
+      - l1-postgres0
+    networks:
+      - l1-network
+
+  l1-postgres0:
+    image: postgres:14
+    container_name: l1-postgres0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: l1db
+    volumes:
+      - l1-postgres-data0:/var/lib/postgresql/data
+    ports:
+      - "5440:5432"
+    networks:
+      - l1-network
+
+  l1-node1:
+    image: l1-node:latest
+    container_name: l1-node1
+    ports:
+      - "5001:5001"
+      - "9002:9002"
+      - "9003:9003"
+    volumes:
+      - ./node-config/node1:/root/.cometbft
+    command: 
+      - "/app/bin"
+      - "--cmt-home=/root/.cometbft"
+      - "--http-port=5001"
+      - "--postgres-host=l1-postgres1:5432"
+    depends_on:
+      - l1-postgres1
+    networks:
+      - l1-network
+
+  l1-postgres1:
+    image: postgres:14
+    container_name: l1-postgres1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: l1db
+    volumes:
+      - l1-postgres-data1:/var/lib/postgresql/data
+    ports:
+      - "5441:5432"
+    networks:
+      - l1-network
+
+  l1-node2:
+    image: l1-node:latest
+    container_name: l1-node2
+    ports:
+      - "5002:5002"
+      - "9004:9004"
+      - "9005:9005"
+    volumes:
+      - ./node-config/node2:/root/.cometbft
+    command: 
+      - "/app/bin"
+      - "--cmt-home=/root/.cometbft"
+      - "--http-port=5002"
+      - "--postgres-host=l1-postgres2:5432"
+    depends_on:
+      - l1-postgres2
+    networks:
+      - l1-network
+
+  l1-postgres2:
+    image: postgres:14
+    container_name: l1-postgres2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: l1db
+    volumes:
+      - l1-postgres-data2:/var/lib/postgresql/data
+    ports:
+      - "5442:5432"
+    networks:
+      - l1-network
+
+  l1-node3:
+    image: l1-node:latest
+    container_name: l1-node3
+    ports:
+      - "5003:5003"
+      - "9006:9006"
+      - "9007:9007"
+    volumes:
+      - ./node-config/node3:/root/.cometbft
+    command: 
+      - "/app/bin"
+      - "--cmt-home=/root/.cometbft"
+      - "--http-port=5003"
+      - "--postgres-host=l1-postgres3:5432"
+    depends_on:
+      - l1-postgres3
+    networks:
+      - l1-network
+
+  l1-postgres3:
+    image: postgres:14
+    container_name: l1-postgres3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: l1db
+    volumes:
+      - l1-postgres-data3:/var/lib/postgresql/data
+    ports:
+      - "5443:5432"
+    networks:
+      - l1-network
+
+networks:
+  l1-network:
+    driver: bridge
+
+volumes:
+  l1-postgres-data0:
+  l1-postgres-data1:
+  l1-postgres-data2:
+  l1-postgres-data3:

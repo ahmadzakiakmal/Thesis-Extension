@@ -28,7 +28,7 @@ services:
     volumes:
       - l1-postgres-data0:/var/lib/postgresql/data
     ports:
-      - "5440:5432"
+      - "5437:5432"
     networks:
       - l1-network
 
@@ -61,7 +61,7 @@ services:
     volumes:
       - l1-postgres-data1:/var/lib/postgresql/data
     ports:
-      - "5441:5432"
+      - "5438:5432"
     networks:
       - l1-network
 
@@ -94,7 +94,7 @@ services:
     volumes:
       - l1-postgres-data2:/var/lib/postgresql/data
     ports:
-      - "5442:5432"
+      - "5439:5432"
     networks:
       - l1-network
 
@@ -127,7 +127,7 @@ services:
     volumes:
       - l1-postgres-data3:/var/lib/postgresql/data
     ports:
-      - "5443:5432"
+      - "5440:5432"
     networks:
       - l1-network
 

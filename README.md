@@ -5,11 +5,11 @@ A simplified Byzantine Fault Tolerant consensus layer that handles commits from 
 ## Quick Start
 
 ```bash
-# Full setup (clean + build + start)
+# Full setup (clean + build + configure + start)
 make run
 
-# Quick restart (no build)
-make run-only  
+# Quick start (auto-configures if needed, skips build) ⚡
+make start
 
 # Just build everything
 make build
@@ -22,9 +22,6 @@ make monitor
 
 # Stop everything
 make clean
-
-# See all commands
-make help
 ```
 
 ## What This Does
@@ -49,7 +46,7 @@ make help
 
 ## Network Access
 
-After `make run`, your L1 nodes are available at:
+After `make run` or `make start`, your L1 nodes are available at:
 - Node 0: http://localhost:5000
 - Node 1: http://localhost:5001  
 - Node 2: http://localhost:5002
@@ -85,24 +82,77 @@ Sessions      Tolerant             Verification
 
 ## Makefile Commands
 
-- `make run` - Full setup: clean + build + start
-- `make run-only` - Quick restart without building  
-- `make build` - Build binary and Docker image only
-- `make test` - Test L1 endpoints  
-- `make monitor` - Check network health
-- `make clean` - Stop and cleanup
-- `make debug` - Run single node for debugging
-- `make help` - Show all available commands
+| Command | Purpose | When to Use |
+|---------|---------|-------------|
+| `make run` | Full setup: clean + build + start | First time or after code changes |
+| `make start` | Quick start (auto-setup if needed) | Fast restarts, daily development ⚡ |
+| `make build` | Build binary and Docker image only | When you only want to compile |
+| `make test` | Test L1 endpoints | Verify the network works |
+| `make monitor` | Check network health | Monitor running system |
+| `make clean` | Stop and cleanup everything | Fresh start needed |
+| `make debug` | Run single node for debugging | Local debugging without Docker |
 
-**Pro Tips:**
-- Use `make run` for first setup or after code changes
-- Use `make run-only` for quick restarts (much faster!)
-- Use `make run NODES=7` for different node counts
+## Development Workflow
+
+**First Time Setup:**
+```bash
+make run              # Full setup (~30s)
+```
+
+**Daily Development (Fast!):**
+```bash
+# Stop containers
+docker-compose down
+
+# Quick restart (1-2s) ⚡
+make start
+```
+
+**After Code Changes:**
+```bash
+make build            # Rebuild (~15s)
+make start            # Restart (1-2s)
+
+# Or do both at once
+make run              # Clean + build + start (~30s)
+```
+
+**Change Number of Nodes:**
+```bash
+make run NODES=7      # 7-node BFT network
+make run NODES=10     # 10-node BFT network
+```
+
+## Pro Tips
+
+- 💡 **Use `make start` for daily work** - it's 10-15x faster than `make run`
+- 💡 **`make start` is smart** - auto-generates config on first run
+- 💡 **`docker-compose down` doesn't delete config** - safe to restart quickly
+- 💡 **`make clean` removes everything** - use when you want a fresh slate
+- 💡 **Config is cached** - only regenerated when needed
 
 ## Requirements
 
 - Go 1.24+
 - Docker & Docker Compose
 - jq (for JSON processing in scripts)
+- CometBFT (included in container)
 
-That's it! 🎉
+## Troubleshooting
+
+**"No such file or directory: config.toml"**
+```bash
+make start    # Will auto-generate missing config
+```
+
+**Containers won't start:**
+```bash
+make clean    # Full cleanup
+make run      # Fresh start
+```
+
+**Port already in use:**
+```bash
+docker-compose down
+make start
+```

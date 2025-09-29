@@ -98,7 +98,7 @@ for i in $(seq 0 $((NODE_COUNT - 1))); do
     p2p_port=$((BASE_P2P_PORT + i * 2))
     rpc_port=$((BASE_RPC_PORT + i * 2))
     http_port=$((BASE_HTTP_PORT + i))
-    postgres_port=$((BASE_POSTGRES_PORT + i))
+    postgres_port=$((5437 + i))  # Starts at 5432+5=5437, then increments by 1
 
     cat >> "./docker-compose.yml" << EOL
   l1-node$i:

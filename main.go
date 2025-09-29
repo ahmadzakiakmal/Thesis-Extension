@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Connect to PostgreSQL Database
-	dsn := fmt.Sprintf("postgresql://postgres:postgrespassword@%s/postgres", postgresHost)
+	dsn := fmt.Sprintf("postgresql://postgres:postgres@%s/l1db?sslmode=disable", postgresHost)
 	repository := repository.NewRepository()
 	log.Printf("Connecting to PostgreSQL: %s", dsn)
 	repository.ConnectDB(dsn)

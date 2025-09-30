@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # L2 Shard A - for Client Group A
+  l2-shard-a:
+    build: .
+    container_name: l2-shard-a
+    environment:
+      SHARD_ID: "shard-a"
+      CLIENT_GROUP: "group-a"
+      L2_NODE_ID: "l2-node-a"
+      HTTP_PORT: "6000"
+      DB_HOST: "l2-postgres-a"
+      DB_PORT: "5432"
+      DB_USER: "postgres"
+      DB_PASS: "postgrespassword"
+      DB_NAME: "l2_shard_db"
+      L1_ENDPOINT: "http://layer-1-node0:5000"
+    ports:
+      - "6000:6000"
+    networks:
+      - bft-ws-network
+    depends_on:
+      - l2-postgres-a
+
+  l2-postgres-a:
+    image: postgres:14
+    container_name: l2-postgres-a
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: l2_shard_db
+    volumes:
+      - l2-postgres-data-a:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - bft-ws-network
+
+  # L2 Shard B - for Client Group B
+  l2-shard-b:
+    build: .
+    container_name: l2-shard-b
+    environment:
+      SHARD_ID: "shard-b"
+      CLIENT_GROUP: "group-b"
+      L2_NODE_ID: "l2-node-b"
+      HTTP_PORT: "6000"
+      DB_HOST: "l2-postgres-b"
+      DB_PORT: "5432"
+      DB_USER: "postgres"
+      DB_PASS: "postgrespassword"
+      DB_NAME: "l2_shard_db"
+      L1_ENDPOINT: "http://layer-1-node0:5000"
+    ports:
+      - "6001:6000"
+    networks:
+      - bft-ws-network
+    depends_on:
+      - l2-postgres-b
+
+  l2-postgres-b:
+    image: postgres:14
+    container_name: l2-postgres-b
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: l2_shard_db
+    volumes:
+      - l2-postgres-data-b:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - bft-ws-network
+
+networks:
+  bft-ws-network:
+    name: bft-ws-network
+    external: true
+
+volumes:
+  l2-postgres-data-a:
+  l2-postgres-data-b:

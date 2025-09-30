@@ -19,7 +19,7 @@ services:
     ports:
       - "6000:6000"
     networks:
-      - bft-ws-network
+      - thesis-extension_l1-network
     depends_on:
       - l2-postgres-a
 
@@ -35,7 +35,7 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - bft-ws-network
+      - thesis-extension_l1-network
 
   # L2 Shard B - for Client Group B
   l2-shard-b:
@@ -55,7 +55,7 @@ services:
     ports:
       - "6001:6000"
     networks:
-      - bft-ws-network
+      - thesis-extension_l1-network
     depends_on:
       - l2-postgres-b
 
@@ -71,11 +71,10 @@ services:
     ports:
       - "5434:5432"
     networks:
-      - bft-ws-network
+      - thesis-extension_l1-network
 
 networks:
-  bft-ws-network:
-    name: bft-ws-network
+  thesis-extension_l1-network:
     external: true
 
 volumes:

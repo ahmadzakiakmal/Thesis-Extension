@@ -87,13 +87,52 @@ func (r *Repository) ConnectDB(dsn string) {
 
 // Migrate performs database schema migrations
 func (r *Repository) Migrate() {
-	// Migrate all models for sharded architecture
-	r.db.AutoMigrate(
-		&models.ShardInfo{},
-		&models.Session{},
-		&models.Transaction{},
-		&models.Operator{},
-	)
+	migrator := r.db.Migrator()
+
+	// 1. ShardInfo has no dependencies - create it first
+	if !migrator.HasTable(&models.ShardInfo{}) {
+		if err := migrator.CreateTable(&models.ShardInfo{}); err != nil {
+			log.Printf("Error creating ShardInfo table: %v", err)
+			return
+		}
+		log.Println("✓ ShardInfo table created")
+	} else {
+		log.Println("✓ ShardInfo table already exists")
+	}
+
+	// 2. Operator depends on ShardInfo
+	if !migrator.HasTable(&models.Operator{}) {
+		if err := migrator.CreateTable(&models.Operator{}); err != nil {
+			log.Printf("Error creating Operator table: %v", err)
+			return
+		}
+		log.Println("✓ Operator table created")
+	} else {
+		log.Println("✓ Operator table already exists")
+	}
+
+	// 3. Session depends on ShardInfo
+	if !migrator.HasTable(&models.Session{}) {
+		if err := migrator.CreateTable(&models.Session{}); err != nil {
+			log.Printf("Error creating Session table: %v", err)
+			return
+		}
+		log.Println("✓ Session table created")
+	} else {
+		log.Println("✓ Session table already exists")
+	}
+
+	// 4. Transaction depends on ShardInfo and Session
+	if !migrator.HasTable(&models.Transaction{}) {
+		if err := migrator.CreateTable(&models.Transaction{}); err != nil {
+			log.Printf("Error creating Transaction table: %v", err)
+			return
+		}
+		log.Println("✓ Transaction table created")
+	} else {
+		log.Println("✓ Transaction table already exists")
+	}
+
 	log.Println("Database migration completed successfully")
 }
 

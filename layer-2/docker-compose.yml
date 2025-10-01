@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # L2 Shard A - for Client Group A
   l2-shard-a:
@@ -9,7 +7,7 @@ services:
       SHARD_ID: "shard-a"
       CLIENT_GROUP: "group-a"
       L2_NODE_ID: "l2-node-a"
-      HTTP_PORT: "6000"
+      HTTP_PORT: "7000"
       DB_HOST: "l2-postgres-a"
       DB_PORT: "5432"
       DB_USER: "postgres"
@@ -17,9 +15,9 @@ services:
       DB_NAME: "l2_shard_db"
       L1_ENDPOINT: "http://layer-1-node0:5000"
     ports:
-      - "6000:6000"
+      - "7000:7000"
     networks:
-      - thesis-extension_l1-network
+      - layer-1_l1-network 
     depends_on:
       - l2-postgres-a
 
@@ -35,7 +33,7 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - thesis-extension_l1-network
+      - layer-1_l1-network 
 
   # L2 Shard B - for Client Group B
   l2-shard-b:
@@ -45,7 +43,7 @@ services:
       SHARD_ID: "shard-b"
       CLIENT_GROUP: "group-b"
       L2_NODE_ID: "l2-node-b"
-      HTTP_PORT: "6000"
+      HTTP_PORT: "7000"
       DB_HOST: "l2-postgres-b"
       DB_PORT: "5432"
       DB_USER: "postgres"
@@ -53,9 +51,9 @@ services:
       DB_NAME: "l2_shard_db"
       L1_ENDPOINT: "http://layer-1-node0:5000"
     ports:
-      - "6001:6000"
+      - "7001:7000"
     networks:
-      - thesis-extension_l1-network
+      - layer-1_l1-network 
     depends_on:
       - l2-postgres-b
 
@@ -71,10 +69,10 @@ services:
     ports:
       - "5434:5432"
     networks:
-      - thesis-extension_l1-network
+      - layer-1_l1-network 
 
 networks:
-  thesis-extension_l1-network:
+  layer-1_l1-network :
     external: true
 
 volumes:

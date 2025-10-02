@@ -5,7 +5,7 @@ echo "   LATENCY BENCHMARK RUNNER"
 echo "========================================"
 echo ""
 
-ITERATIONS=10
+ITERATIONS=100
 L1_NODES=4
 L2_PORT=7000
 

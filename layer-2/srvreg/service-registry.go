@@ -1,11 +1,14 @@
 package srvreg
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ahmadzakiakmal/thesis-extension/layer-2/l1client"
 	"github.com/ahmadzakiakmal/thesis-extension/layer-2/repository"
@@ -134,17 +137,8 @@ func (req *Request) GenerateResponse(services *ServiceRegistry) (*Response, erro
 	if clientGroup != "" {
 		shouldHandle, redirectURL := services.CheckShardAndRedirect(clientGroup)
 		if !shouldHandle {
-			// Return redirect response
-			return &Response{
-				StatusCode: http.StatusTemporaryRedirect, // 307
-				Headers:    defaultHeaders,
-				Body: fmt.Sprintf(`{
-					"error":"Wrong shard",
-					"message":"This shard handles %s. Please connect to the correct shard.",
-					"redirect_to":"%s",
-					"client_group":"%s"
-				}`, services.clientGroup, redirectURL, clientGroup),
-			}, nil
+			// Forward to correct shard instead of returning redirect
+			return services.ForwardToCorrectShard(req, redirectURL)
 		}
 	}
 
@@ -185,4 +179,51 @@ func (sr *ServiceRegistry) CheckShardAndRedirect(clientGroup string) (bool, stri
 	sr.logger.Printf("↪️  Redirecting client_group=%s to shard=%s at %s", clientGroup, shard.ShardID, shard.L2Endpoint)
 
 	return false, shard.L2Endpoint
+}
+
+// ForwardToCorrectShard forwards the request to the correct shard and measures time
+func (sr *ServiceRegistry) ForwardToCorrectShard(req *Request, targetURL string) (*Response, error) {
+	startTime := time.Now()
+
+	// Construct the full URL
+	fullURL := fmt.Sprintf("%s%s", targetURL, req.Path)
+
+	sr.logger.Printf("🔄 Forwarding request to correct shard: %s %s", req.Method, fullURL)
+
+	// Create HTTP request
+	httpReq, err := http.NewRequest(req.Method, fullURL, bytes.NewBufferString(req.Body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create forward request: %w", err)
+	}
+
+	// Copy headers from original request
+	for key, value := range req.Headers {
+		httpReq.Header.Set(key, value)
+	}
+
+	// Make the request
+	client := &http.Client{Timeout: 30 * time.Second}
+	httpResp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to forward request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	// Read response body
+	bodyBytes, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read forward response: %w", err)
+	}
+
+	// Measure time
+	forwardLatency := time.Since(startTime).Milliseconds()
+
+	sr.logger.Printf("✅ Cross-shard request completed in %d ms", forwardLatency)
+
+	// Return the response from the correct shard
+	return &Response{
+		StatusCode: httpResp.StatusCode,
+		Headers:    defaultHeaders,
+		Body:       string(bodyBytes),
+	}, nil
 }

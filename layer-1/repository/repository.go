@@ -150,12 +150,11 @@ func (r *Repository) Seed() {
 
 	// Create shard info (4 shards for testing)
 	shards := []models.ShardInfo{
-		{ShardID: "shard-a", ClientGroup: "group-a", L2NodeID: "l2-node-a", L2Endpoint: "http://localhost:7000", Status: "active"},
-		{ShardID: "shard-b", ClientGroup: "group-b", L2NodeID: "l2-node-b", L2Endpoint: "http://localhost:7001", Status: "active"},
-		{ShardID: "shard-c", ClientGroup: "group-c", L2NodeID: "l2-node-c", L2Endpoint: "http://localhost:7002", Status: "active"},
-		{ShardID: "shard-d", ClientGroup: "group-d", L2NodeID: "l2-node-d", L2Endpoint: "http://localhost:7003", Status: "active"},
+		{ShardID: "shard-a", ClientGroup: "group-a", L2NodeID: "l2-node-a", L2Endpoint: "http://l2-shard-a:7000", Status: "active"},
+		{ShardID: "shard-b", ClientGroup: "group-b", L2NodeID: "l2-node-b", L2Endpoint: "http://l2-shard-b:7000", Status: "active"},
+		{ShardID: "shard-c", ClientGroup: "group-c", L2NodeID: "l2-node-c", L2Endpoint: "http://l2-shard-c:7000", Status: "active"},
+		{ShardID: "shard-d", ClientGroup: "group-d", L2NodeID: "l2-node-d", L2Endpoint: "http://l2-shard-d:7000", Status: "active"},
 	}
-
 	for _, shard := range shards {
 		if err := r.db.Create(&shard).Error; err != nil {
 			log.Printf("Error creating shard %s: %v", shard.ShardID, err)

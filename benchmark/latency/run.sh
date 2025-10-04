@@ -7,14 +7,14 @@ echo ""
 
 ITERATIONS=100
 L1_NODES=4
-L2_NODES=2  # ADD THIS
+L2_NODES=1
 L2_PORT=7000
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -n) ITERATIONS="$2"; shift 2 ;;
         -l1) L1_NODES="$2"; shift 2 ;;
-        -l2) L2_NODES="$2"; shift 2 ;;  # ADD THIS
+        -l2) L2_NODES="$2"; shift 2 ;; 
         -port) L2_PORT="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -23,7 +23,7 @@ done
 echo "Configuration:"
 echo "  Iterations: $ITERATIONS"
 echo "  L1 Nodes:   $L1_NODES"
-echo "  L2 Nodes:   $L2_NODES"  # ADD THIS
+echo "  L2 Nodes:   $L2_NODES" 
 echo "  L2 Port:    $L2_PORT"
 echo ""
 

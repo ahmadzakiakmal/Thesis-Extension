@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ahmadzakiakmal/thesis-extension/layer-2/repository/models"
@@ -14,9 +15,11 @@ import (
 // L1Client handles communication with L1 BFT network
 type L1Client struct {
 	endpoint   string
-	httpClient *http.Client
 	shardID    string
 	nodeID     string
+	httpClient *http.Client
+	shardCache map[string]ShardInfo // cache: client_group -> ShardInfo
+	mu         sync.RWMutex         // protect the cache
 }
 
 // CommitRequest represents the request to commit a session to L1
@@ -212,4 +215,71 @@ func (c *L1Client) HealthCheck() error {
 	}
 
 	return nil
+}
+
+// ShardInfo represents shard information from L1
+type ShardInfo struct {
+	ShardID     string `json:"ShardID"`
+	ClientGroup string `json:"ClientGroup"`
+	L2NodeID    string `json:"L2NodeID"`
+	L2Endpoint  string `json:"L2Endpoint"` // NEW
+	Status      string `json:"Status"`
+}
+
+// GetAllShards retrieves all registered shards from L1
+func (c *L1Client) GetAllShards() ([]ShardInfo, error) {
+	url := fmt.Sprintf("%s/l1/shards", c.endpoint)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query L1 shards: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("L1 returned status %d", resp.StatusCode)
+	}
+
+	var response struct {
+		Data struct {
+			Shards []ShardInfo `json:"shards"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode L1 response: %w", err)
+	}
+
+	return response.Data.Shards, nil
+}
+
+// LoadShards fetches and caches all shard information from L1
+func (c *L1Client) LoadShards() error {
+	shards, err := c.GetAllShards()
+	if err != nil {
+		return fmt.Errorf("failed to load shards: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Build cache: client_group -> ShardInfo
+	c.shardCache = make(map[string]ShardInfo)
+	for _, shard := range shards {
+		c.shardCache[shard.ClientGroup] = shard
+		// ADD THIS DEBUG LOG
+		fmt.Printf("📋 Cached shard: group=%s, shard_id=%s, endpoint=%s\n",
+			shard.ClientGroup, shard.ShardID, shard.L2Endpoint)
+	}
+
+	return nil
+}
+
+// GetShardByClientGroup returns shard info for a given client group
+func (c *L1Client) GetShardByClientGroup(clientGroup string) (ShardInfo, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	shard, found := c.shardCache[clientGroup]
+	return shard, found
 }

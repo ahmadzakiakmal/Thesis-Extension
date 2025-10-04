@@ -7,11 +7,10 @@ type ShardInfo struct {
 	ShardID     string    `gorm:"column:shard_id;primaryKey;type:varchar(50)"`
 	ClientGroup string    `gorm:"column:client_group;type:varchar(100);not null"`
 	L2NodeID    string    `gorm:"column:l2_node_id;type:varchar(50);not null"`
+	L2Endpoint  string    `gorm:"column:l2_endpoint;type:varchar(255);not null"`
 	Status      string    `gorm:"column:status;type:varchar(20);default:'active'"`
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
-
-	// NOTE: We don't define parent -> child relationships to avoid circular dependencies during migration
 }
 
 // Session represents a session from any L2 shard

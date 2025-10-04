@@ -142,9 +142,10 @@ func (ws *WebServer) handleInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := &srvreg.Request{
-		Method: r.Method,
-		Path:   r.URL.Path,
-		Body:   "",
+		Method:  r.Method,
+		Path:    r.URL.Path,
+		Body:    "",
+		Headers: convertHeaders(r.Header),
 	}
 
 	response, err := req.GenerateResponse(ws.serviceRegistry)
@@ -169,9 +170,10 @@ func (ws *WebServer) handleSession(w http.ResponseWriter, r *http.Request) {
 
 	// Create request object
 	req := &srvreg.Request{
-		Method: r.Method,
-		Path:   r.URL.Path,
-		Body:   string(bodyBytes),
+		Method:  r.Method,
+		Path:    r.URL.Path,
+		Body:    string(bodyBytes),
+		Headers: convertHeaders(r.Header),
 	}
 
 	// Generate response through service registry
@@ -208,4 +210,15 @@ func jsonError(w http.ResponseWriter, message string, statusCode int) {
 		"error": message,
 	}
 	json.NewEncoder(w).Encode(errorResp)
+}
+
+// convertHeaders converts http.Header to map[string]string
+func convertHeaders(httpHeaders http.Header) map[string]string {
+	headers := make(map[string]string)
+	for key, values := range httpHeaders {
+		if len(values) > 0 {
+			headers[key] = values[0] // Take first value if multiple
+		}
+	}
+	return headers
 }

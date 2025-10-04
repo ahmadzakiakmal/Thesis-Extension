@@ -1,10 +1,10 @@
 package srvreg
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ahmadzakiakmal/thesis-extension/layer-2/l1client"
@@ -13,9 +13,10 @@ import (
 
 // Request represents an incoming HTTP request
 type Request struct {
-	Method string
-	Path   string
-	Body   string
+	Method  string
+	Path    string
+	Body    string
+	Headers map[string]string
 }
 
 // Response represents an HTTP response
@@ -35,6 +36,7 @@ type ServiceRegistry struct {
 	l1Client    *l1client.L1Client
 	shardID     string
 	clientGroup string
+	logger      log.Logger
 }
 
 var defaultHeaders = map[string]string{
@@ -49,6 +51,7 @@ func NewServiceRegistry(repo *repository.Repository, l1Client *l1client.L1Client
 		l1Client:    l1Client,
 		shardID:     shardID,
 		clientGroup: clientGroup,
+		logger:      *log.New(os.Stdout, "[ServiceRegistry] ", log.LstdFlags),
 	}
 }
 
@@ -126,6 +129,26 @@ func (sr *ServiceRegistry) RegisterDefaultServices() {
 
 // GenerateResponse executes the request and generates a response
 func (req *Request) GenerateResponse(services *ServiceRegistry) (*Response, error) {
+	// Check client group header and redirect if needed
+	clientGroup := req.Headers["X-Client-Group"]
+	if clientGroup != "" {
+		shouldHandle, redirectURL := services.CheckShardAndRedirect(clientGroup)
+		if !shouldHandle {
+			// Return redirect response
+			return &Response{
+				StatusCode: http.StatusTemporaryRedirect, // 307
+				Headers:    defaultHeaders,
+				Body: fmt.Sprintf(`{
+					"error":"Wrong shard",
+					"message":"This shard handles %s. Please connect to the correct shard.",
+					"redirect_to":"%s",
+					"client_group":"%s"
+				}`, services.clientGroup, redirectURL, clientGroup),
+			}, nil
+		}
+	}
+
+	// Continue with normal handler routing
 	handler, found := services.GetHandlerForPath(req.Method, req.Path)
 
 	if !found {
@@ -140,11 +163,26 @@ func (req *Request) GenerateResponse(services *ServiceRegistry) (*Response, erro
 	return response, err
 }
 
-// compactJSON removes whitespace from JSON
-func compactJSON(body string) string {
-	var buf bytes.Buffer
-	if err := json.Compact(&buf, []byte(body)); err != nil {
-		return strings.TrimSpace(body)
+// CheckShardAndRedirect checks if the client group belongs to this shard
+// Returns (shouldHandle, redirectURL)
+// CheckShardAndRedirect checks if the client group belongs to this shard
+// Returns (shouldHandle, redirectURL)
+func (sr *ServiceRegistry) CheckShardAndRedirect(clientGroup string) (bool, string) {
+	// If client group matches this shard, handle it
+	if clientGroup == sr.clientGroup {
+		return true, ""
 	}
-	return buf.String()
+
+	// Client group doesn't match - find the correct shard
+	shard, found := sr.l1Client.GetShardByClientGroup(clientGroup)
+	if !found {
+		// Unknown client group - let this shard handle it (will likely fail later)
+		sr.logger.Printf("⚠️  Unknown client group: %s", clientGroup)
+		return true, ""
+	}
+
+	// Return redirect URL
+	sr.logger.Printf("↪️  Redirecting client_group=%s to shard=%s at %s", clientGroup, shard.ShardID, shard.L2Endpoint)
+
+	return false, shard.L2Endpoint
 }

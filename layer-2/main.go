@@ -62,22 +62,31 @@ func main() {
 		log.Println("✓ L1 connection verified")
 	}
 
+	// Load shard information from L1
+	log.Println("📋 Loading shard registry from L1...")
+	if err := l1Client.LoadShards(); err != nil {
+		log.Printf("⚠️  Warning: Failed to load shards: %v", err)
+		log.Println("   Redirect functionality will not be available")
+	} else {
+		log.Println("✓ Shard registry loaded")
+	}
+
 	// Initialize service registry
-	log.Println("\n🛠️  Setting up service registry...")
+	log.Println("\nSetting up service registry...")
 	serviceRegistry := srvreg.NewServiceRegistry(repo, l1Client, cfg.ShardID, cfg.ClientGroup)
 	serviceRegistry.RegisterDefaultServices()
 
 	// Initialize web server
-	log.Println("\n🌐 Starting web server...")
+	log.Println("\nStarting web server...")
 	webServer := server.NewWebServer(cfg.HTTPPort, serviceRegistry, cfg.ShardID, cfg.ClientGroup)
 	if err := webServer.Start(); err != nil {
 		log.Fatalf("❌ Failed to start web server: %v", err)
 	}
 
 	log.Println("\n===========================================")
-	log.Printf("   ✅ L2 Shard Node Ready!")
-	log.Printf("   🔷 Shard: %s (Group: %s)", cfg.ShardID, cfg.ClientGroup)
-	log.Printf("   🌐 Listening on: http://localhost:%s", cfg.HTTPPort)
+	log.Printf("   L2 Shard Node Ready!")
+	log.Printf("   Shard: %s (Group: %s)", cfg.ShardID, cfg.ClientGroup)
+	log.Printf("   Listening on: http://localhost:%s", cfg.HTTPPort)
 	log.Println("===========================================")
 	log.Println("")
 

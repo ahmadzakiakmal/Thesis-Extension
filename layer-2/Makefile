@@ -1,60 +1,67 @@
-.PHONY: build start stop clean test logs
+.PHONY: build run start clean test logs restart
 
-# Build Docker images
+# Default configuration
+NODES ?= 2
+
+# Build Docker image
 build:
 	@echo "🔨 Building L2 Shard Docker image..."
-	docker build -t l2-shard:latest .
+	docker build -t l2-shard:latest . --no-cache
 	@echo "✅ Build complete!"
 
-# Start L2 shards
+# Run the L2 network (with clean and build)
+run: clean build
+	@echo "Setting up L2 Shard network with $(NODES) nodes..."
+	@./setup-l2-network.sh -n $(NODES)
+	@echo "Starting L2 network..."
+	@docker-compose up -d
+	@echo ""
+	@echo "✅ L2 Shard Network is running!"
+	@echo "   Shard Endpoints:"
+	@./setup-l2-network.sh -n $(NODES) | grep "shard-" | grep "http"
+	@echo ""
+	@echo "🔧 Useful commands:"
+	@echo "   make test    - Test all shards"
+	@echo "   make logs    - View logs"
+	@echo "   make clean   - Stop and cleanup"
+
+# Start the L2 network (auto-setup config if needed)
 start:
-	@echo "🚀 Starting L2 Shards..."
-	docker-compose up -d
-	@echo "✅ L2 Shards started!"
+	@if [ ! -f "docker-compose.yml" ]; then \
+		echo "⚙️  No configuration found. Setting up..."; \
+		./setup-l2-network.sh -n $(NODES); \
+	fi
+	@echo "Starting L2 network..."
+	@docker-compose up -d
 	@echo ""
-	@echo "📍 Shard A (Group A): http://localhost:6000"
-	@echo "📍 Shard B (Group B): http://localhost:6001"
-	@echo ""
-	@echo "Run 'make logs' to view logs"
+	@echo "✅ L2 Shard Network is running!"
 
-# Stop L2 shards
-stop:
-	@echo "🛑 Stopping L2 Shards..."
-	docker-compose down
-	@echo "✅ L2 Shards stopped!"
-
-# Clean everything (including volumes)
+# Stop and clean everything
 clean:
-	@echo "🧹 Cleaning up L2 Shards..."
-	docker-compose down -v
-	docker rmi l2-shard:latest 2>/dev/null || true
+	@echo "🧹 Cleaning up L2 environment..."
+	@docker-compose down -v 2>/dev/null || true
+	@docker rmi l2-shard:latest 2>/dev/null || true
 	@echo "✅ Cleanup complete!"
 
 # View logs
 logs:
-	docker-compose logs -f
+	@docker-compose logs -f
 
 # Test L2 shard endpoints
 test:
-	@echo "🧪 Testing L2 Shard A..."
-	@echo ""
-	@echo "1. Testing /info endpoint..."
-	@curl -s http://localhost:6000/info | jq '.' || echo "❌ Failed"
-	@echo ""
-	@echo "2. Creating session..."
-	@curl -s -X POST http://localhost:6000/session/start \
-		-H "Content-Type: application/json" \
-		-d '{"operator_id":"OPR-001"}' | jq '.' || echo "❌ Failed"
-	@echo ""
-	@echo "✅ Basic tests complete!"
-
-# Full workflow test
-test-workflow:
-	@echo "🧪 Running full workflow test on Shard A..."
-	@bash test-workflow.sh
+	@echo "🧪 Testing L2 Shard Endpoints..."
+	@bash test-l2-endpoints.sh || echo "Create test-l2-endpoints.sh for testing"
 
 # Restart
-restart: stop start
+restart: 
+	@docker-compose down
+	@docker-compose up -d
+	@echo "✅ L2 restarted!"
 
-# Build and start
-run: build start
+# Quick rebuild (for code changes)
+rebuild:
+	@echo "🔨 Rebuilding L2 image..."
+	@docker-compose down
+	@docker build -t l2-shard:latest .
+	@docker-compose up -d
+	@echo "✅ Rebuild complete!"

@@ -148,10 +148,12 @@ func (r *Repository) Seed() {
 
 	log.Println("Seeding database with shard data...")
 
-	// Create shard info
+	// Create shard info (4 shards for testing)
 	shards := []models.ShardInfo{
-		{ShardID: "shard-a", ClientGroup: "group-a", L2NodeID: "l2-node-a", Status: "active"},
-		{ShardID: "shard-b", ClientGroup: "group-b", L2NodeID: "l2-node-b", Status: "active"},
+		{ShardID: "shard-a", ClientGroup: "group-a", L2NodeID: "l2-node-a", L2Endpoint: "http://localhost:7000", Status: "active"},
+		{ShardID: "shard-b", ClientGroup: "group-b", L2NodeID: "l2-node-b", L2Endpoint: "http://localhost:7001", Status: "active"},
+		{ShardID: "shard-c", ClientGroup: "group-c", L2NodeID: "l2-node-c", L2Endpoint: "http://localhost:7002", Status: "active"},
+		{ShardID: "shard-d", ClientGroup: "group-d", L2NodeID: "l2-node-d", L2Endpoint: "http://localhost:7003", Status: "active"},
 	}
 
 	for _, shard := range shards {
@@ -160,12 +162,16 @@ func (r *Repository) Seed() {
 		}
 	}
 
-	// Create cross-shard operators
+	// Create cross-shard operators (distribute across 4 shards)
 	operators := []models.Operator{
 		{ID: "OPR-001", Name: "John Smith", Role: "Warehouse Manager", AccessLevel: "Admin", ShardID: "shard-a"},
 		{ID: "OPR-002", Name: "Sarah Lee", Role: "Quality Control", AccessLevel: "Standard", ShardID: "shard-a"},
 		{ID: "OPR-003", Name: "Raj Patel", Role: "Logistics Coordinator", AccessLevel: "Standard", ShardID: "shard-b"},
 		{ID: "OPR-004", Name: "Maria Garcia", Role: "Inventory Clerk", AccessLevel: "Basic", ShardID: "shard-b"},
+		{ID: "OPR-005", Name: "Chen Wei", Role: "Warehouse Supervisor", AccessLevel: "Admin", ShardID: "shard-c"},
+		{ID: "OPR-006", Name: "Ahmed Hassan", Role: "Shipping Clerk", AccessLevel: "Standard", ShardID: "shard-c"},
+		{ID: "OPR-007", Name: "Emma Wilson", Role: "Quality Inspector", AccessLevel: "Standard", ShardID: "shard-d"},
+		{ID: "OPR-008", Name: "Luis Rodriguez", Role: "Inventory Manager", AccessLevel: "Admin", ShardID: "shard-d"},
 	}
 
 	for _, operator := range operators {
@@ -174,7 +180,7 @@ func (r *Repository) Seed() {
 		}
 	}
 
-	log.Println("Database seeding completed successfully")
+	log.Println("Database seeding completed successfully with 4 shards")
 }
 
 // SetupRpcClient configures the RPC client for BFT consensus
@@ -437,4 +443,19 @@ func (r *Repository) GetTransactionByHash(txHash string) (*models.Transaction, *
 	}
 
 	return &transaction, nil
+}
+
+// GetAllShards retrieves all registered shards
+func (r *Repository) GetAllShards() ([]models.ShardInfo, *RepositoryError) {
+	var shards []models.ShardInfo
+
+	err := r.db.Where("status = ?", "active").Find(&shards).Error
+	if err != nil {
+		return nil, &RepositoryError{
+			Code:   "DATABASE_ERROR",
+			Detail: fmt.Sprintf("Failed to retrieve shards: %v", err),
+		}
+	}
+
+	return shards, nil
 }

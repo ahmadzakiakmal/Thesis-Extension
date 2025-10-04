@@ -365,17 +365,26 @@ func (sr *ServiceRegistry) StatusHandler(req *Request) (*Response, error) {
 
 // GetShardsHandler returns information about all registered shards
 func (sr *ServiceRegistry) GetShardsHandler(req *Request) (*Response, error) {
-	// This would query shard information from the database
-	// Simplified for now
-	shards := map[string]interface{}{
-		"shards": []map[string]string{
-			{"shard_id": "shard-a", "client_group": "group-a", "status": "active"},
-			{"shard_id": "shard-b", "client_group": "group-b", "status": "active"},
-		},
+	// Query shard information from the database
+	shards, repoErr := sr.repository.GetAllShards()
+	if repoErr != nil {
+		sr.logger.Error("Failed to retrieve shards", "error", repoErr.Detail)
+		return &Response{
+			StatusCode: http.StatusInternalServerError,
+			Headers:    defaultHeaders,
+			Body:       `{"error":"Failed to retrieve shards"}`,
+		}, fmt.Errorf("repository error: %s", repoErr.Detail)
 	}
 
-	shardsJSON, err := json.Marshal(shards)
+	// Format response
+	response := map[string]interface{}{
+		"shards": shards,
+		"count":  len(shards),
+	}
+
+	shardsJSON, err := json.Marshal(response)
 	if err != nil {
+		sr.logger.Error("Failed to serialize shards", "error", err.Error())
 		return &Response{
 			StatusCode: http.StatusInternalServerError,
 			Headers:    defaultHeaders,

@@ -27,6 +27,7 @@ type Result struct {
 
 func main() {
 	l1Nodes := flag.Int("l1", 4, "Number of L1 nodes")
+	l2Nodes := flag.Int("l2", 2, "Number of L2 nodes")
 	iterations := flag.Int("n", 100, "Number of iterations")
 	l2Port := flag.String("port", "7000", "L2 port")
 	packageID := flag.String("pkg", "PKG-001", "Package ID to use")
@@ -37,8 +38,8 @@ func main() {
 
 	timestamp := time.Now().Format("2006-01-02_15-04-05")
 	filename := filepath.Join(recordsDir, fmt.Sprintf(
-		"latency_%s_n%d_l1-%d.csv",
-		timestamp, *iterations, *l1Nodes,
+		"latency_%s_n%d_l1-%d_l2-%d.csv",
+		timestamp, *iterations, *l1Nodes, *l2Nodes,
 	))
 
 	file, err := os.Create(filename)
@@ -60,6 +61,7 @@ func main() {
 	fmt.Println("   LATENCY BENCHMARK")
 	fmt.Println("========================================")
 	fmt.Printf("L1 Nodes:   %d\n", *l1Nodes)
+	fmt.Printf("L2 Nodes:   %d\n", *l2Nodes)
 	fmt.Printf("Iterations: %d\n", *iterations)
 	fmt.Printf("L2 URL:     %s\n", baseURL)
 	fmt.Printf("Package ID: %s\n", *packageID)

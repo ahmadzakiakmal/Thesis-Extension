@@ -57,6 +57,11 @@ func main() {
 	baseURL := fmt.Sprintf("http://127.0.0.1:%s", *l2Port)
 	client := NewHTTPClient(baseURL)
 
+	// Set headers for all requests
+	client.SetHeaders(map[string]string{
+		"X-Client-Group": "group-a",
+	})
+
 	fmt.Println("========================================")
 	fmt.Println("   LATENCY BENCHMARK")
 	fmt.Println("========================================")
@@ -65,6 +70,7 @@ func main() {
 	fmt.Printf("Iterations: %d\n", *iterations)
 	fmt.Printf("L2 URL:     %s\n", baseURL)
 	fmt.Printf("Package ID: %s\n", *packageID)
+	fmt.Printf("Headers:    X-Client-Group=group-b\n")
 	fmt.Printf("Output:     %s\n", filename)
 	fmt.Println("========================================")
 	fmt.Println("")
@@ -73,12 +79,12 @@ func main() {
 	failCount := 0
 
 	for i := 0; i < *iterations; i++ {
-		fmt.Printf("\r[%d/%d] ", i+1, *iterations)
+		fmt.Printf("\n[%d/%d] Starting workflow...", i+1, *iterations)
 
 		results, errMsg := runWorkflow(client, *packageID)
-		if len(results) > 0 {
+
+		if errMsg == "" {
 			successCount++
-			fmt.Print("✓")
 			for _, r := range results {
 				writer.Write([]string{
 					strconv.Itoa(i + 1),
@@ -89,18 +95,20 @@ func main() {
 			}
 		} else {
 			failCount++
-			fmt.Printf("✗ %s\n", errMsg)
+			fmt.Printf("\n  ✗ Failed: %s\n", errMsg)
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
 	fmt.Printf("\n\n========================================\n")
-	fmt.Printf("Success: %d/%d\n", successCount, *iterations)
+	fmt.Printf("BENCHMARK COMPLETE\n")
+	fmt.Printf("========================================\n")
+	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, *iterations, float64(successCount)/float64(*iterations)*100)
 	if failCount > 0 {
-		fmt.Printf("Failed:  %d\n", failCount)
+		fmt.Printf("Failed:  %d/%d (%.1f%%)\n", failCount, *iterations, float64(failCount)/float64(*iterations)*100)
 	}
-	fmt.Printf("Results: %s\n", filename)
+	fmt.Printf("Results saved to: %s\n", filename)
 	fmt.Println("========================================")
 }
 
@@ -121,54 +129,78 @@ func runWorkflow(client *HTTPClient, packageID string) ([]Result, string) {
 		return results, fmt.Sprintf("Start Session (unmarshal): %v", err)
 	}
 	sessionID := sessResp.SessionID
+	fmt.Printf("\n  [1] Start Session -> SessionID: %s", sessionID)
 	results = append(results, Result{"Start Session", time.Since(start), 0})
 	time.Sleep(100 * time.Millisecond)
 
 	// 2. Scan Package
 	start = time.Now()
 	endpoint := fmt.Sprintf("/session/%s/scan", sessionID)
-	_, err = client.GET(endpoint)
+	resp, err = client.POST(endpoint, map[string]interface{}{
+		"package_id": packageID,
+	})
 	if err != nil {
 		return results, fmt.Sprintf("Scan Package: %v", err)
 	}
+	// Read response body for logging
+	var scanResp map[string]interface{}
+	if err := UnmarshalBody(resp, &scanResp); err != nil {
+		return results, fmt.Sprintf("Scan Package (unmarshal): %v", err)
+	}
+	fmt.Printf("\n  [2] Scan Package -> Status: %v", scanResp["status"])
 	results = append(results, Result{"Scan Package", time.Since(start), 0})
 	time.Sleep(100 * time.Millisecond)
 
 	// 3. Validate Package
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/validate", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"package_id": packageID,
 		"signature":  "sig_test_001",
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Validate Package: %v", err)
 	}
+	var validateResp map[string]interface{}
+	if err := UnmarshalBody(resp, &validateResp); err != nil {
+		return results, fmt.Sprintf("Validate Package (unmarshal): %v", err)
+	}
+	fmt.Printf("\n  [3] Validate Package -> Status: %v", validateResp["status"])
 	results = append(results, Result{"Validate Package", time.Since(start), 0})
 	time.Sleep(100 * time.Millisecond)
 
 	// 4. Quality Check
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/qc", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"passed": true,
 		"issues": []string{},
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Quality Check: %v", err)
 	}
+	var qcResp map[string]interface{}
+	if err := UnmarshalBody(resp, &qcResp); err != nil {
+		return results, fmt.Sprintf("Quality Check (unmarshal): %v", err)
+	}
+	fmt.Printf("\n  [4] Quality Check -> Status: %v", qcResp["status"])
 	results = append(results, Result{"Quality Check", time.Since(start), 0})
 	time.Sleep(100 * time.Millisecond)
 
 	// 5. Label Package
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/label", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"courier_id": "CUR-001",
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Label Package: %v", err)
 	}
+	var labelResp map[string]interface{}
+	if err := UnmarshalBody(resp, &labelResp); err != nil {
+		return results, fmt.Sprintf("Label Package (unmarshal): %v", err)
+	}
+	fmt.Printf("\n  [5] Label Package -> Status: %v", labelResp["status"])
 	results = append(results, Result{"Label Package", time.Since(start), 0})
 	time.Sleep(100 * time.Millisecond)
 
@@ -183,10 +215,13 @@ func runWorkflow(client *HTTPClient, packageID string) ([]Result, string) {
 	if err := UnmarshalBody(resp, &commitResp); err != nil {
 		return results, fmt.Sprintf("Commit Session (unmarshal): %v", err)
 	}
+	fmt.Printf("\n  [6] Commit Session -> TxHash: %s, BlockHeight: %d", commitResp.TxHash, commitResp.BlockHeight)
 	results = append(results, Result{"Commit Session", time.Since(start), commitResp.BlockHeight})
 
 	// Total
 	results = append(results, Result{"Complete Workflow", time.Since(totalStart), 0})
+
+	fmt.Printf("\n  ✓ Workflow completed in %dms\n", time.Since(totalStart).Milliseconds())
 
 	return results, ""
 }

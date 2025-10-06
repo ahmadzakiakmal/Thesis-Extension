@@ -12,7 +12,6 @@ import (
 type HTTPClient struct {
 	baseURL string
 	client  *http.Client
-	headers map[string]string // Default headers for all requests
 }
 
 func NewHTTPClient(baseURL string) *HTTPClient {
@@ -21,13 +20,7 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		headers: make(map[string]string),
 	}
-}
-
-// SetHeaders sets default headers for all requests
-func (c *HTTPClient) SetHeaders(headers map[string]string) {
-	c.headers = headers
 }
 
 func (c *HTTPClient) GET(endpoint string) (*http.Response, error) {
@@ -40,24 +33,7 @@ func (c *HTTPClient) GET(endpoint string) (*http.Response, error) {
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Cache-Control", "no-cache")
 
-	// Add default headers
-	for key, value := range c.headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check status code for GET requests
-	if resp.StatusCode >= 400 {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
-	}
-
-	return resp, nil
+	return c.client.Do(req)
 }
 
 func (c *HTTPClient) POST(endpoint string, body interface{}) (*http.Response, error) {
@@ -81,24 +57,7 @@ func (c *HTTPClient) POST(endpoint string, body interface{}) (*http.Response, er
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Cache-Control", "no-cache")
 
-	// Add default headers
-	for key, value := range c.headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check status code for POST requests
-	if resp.StatusCode >= 400 {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
-	}
-
-	return resp, nil
+	return c.client.Do(req)
 }
 
 func UnmarshalBody(resp *http.Response, v interface{}) error {
@@ -108,8 +67,6 @@ func UnmarshalBody(resp *http.Response, v interface{}) error {
 		return err
 	}
 
-	// This check is now redundant since we check in GET/POST,
-	// but keeping it as a safety net
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}

@@ -118,7 +118,7 @@ func (sr *ServiceRegistry) RegisterDefaultServices() {
 
 	// Session endpoints
 	sr.RegisterHandler("POST", "/session/start", sr.CreateSessionHandler)
-	sr.RegisterHandler("GET", "/session/:id/scan", sr.ScanPackageHandler)
+	sr.RegisterHandler("POST", "/session/:id/scan", sr.ScanPackageHandler)
 	sr.RegisterHandler("POST", "/session/:id/validate", sr.ValidatePackageHandler)
 	sr.RegisterHandler("POST", "/session/:id/qc", sr.QualityCheckHandler)
 	sr.RegisterHandler("POST", "/session/:id/label", sr.LabelPackageHandler)

@@ -27,11 +27,8 @@ run: clean build
 
 # Start the L2 network (auto-setup config if needed)
 start:
-	@if [ ! -f "docker-compose.yml" ]; then \
-		echo "⚙️  No configuration found. Setting up..."; \
-		./setup-l2-network.sh -n $(NODES); \
-	fi
-	@echo "Starting L2 network..."
+	./setup-l2-network.sh -n $(NODES);
+	@echo "Starting L2 network... (n = $(NODES))"
 	@docker-compose up -d
 	@echo ""
 	@echo "✅ L2 Shard Network is running!"

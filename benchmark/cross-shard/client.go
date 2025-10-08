@@ -38,7 +38,19 @@ func (c *HTTPClient) GET(endpoint string, headers map[string]string) (*http.Resp
 		req.Header.Set(key, value)
 	}
 
-	return c.client.Do(req)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check status code for GET requests
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	return resp, nil
 }
 
 func (c *HTTPClient) POST(endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
@@ -67,7 +79,19 @@ func (c *HTTPClient) POST(endpoint string, body interface{}, headers map[string]
 		req.Header.Set(key, value)
 	}
 
-	return c.client.Do(req)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check status code for POST requests
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	return resp, nil
 }
 
 func UnmarshalBody(resp *http.Response, v interface{}) error {
@@ -77,6 +101,8 @@ func UnmarshalBody(resp *http.Response, v interface{}) error {
 		return err
 	}
 
+	// This check is now redundant since we check in GET/POST,
+	// but keeping it as a safety net
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}

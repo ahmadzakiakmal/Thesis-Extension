@@ -7,7 +7,7 @@ echo ""
 
 ITERATIONS=100
 L1_NODES=4
-L2_NODES=1
+L2_NODES=4
 L2_PORT=7000
 
 while [[ $# -gt 0 ]]; do

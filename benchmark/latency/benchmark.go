@@ -70,7 +70,7 @@ func main() {
 	fmt.Printf("Iterations: %d\n", *iterations)
 	fmt.Printf("L2 URL:     %s\n", baseURL)
 	fmt.Printf("Package ID: %s\n", *packageID)
-	fmt.Printf("Headers:    X-Client-Group=group-b\n")
+	fmt.Printf("Headers:    X-Client-Group=group-a\n")
 	fmt.Printf("Output:     %s\n", filename)
 	fmt.Println("========================================")
 	fmt.Println("")

@@ -69,6 +69,76 @@ services:
     networks:
       - layer-1_l1-network
 
+  l2-shard-c:
+    build: .
+    container_name: l2-shard-c
+    environment:
+      SHARD_ID: "shard-c"
+      CLIENT_GROUP: "group-c"
+      L2_NODE_ID: "l2-node-c"
+      HTTP_PORT: "7000"
+      DB_HOST: "l2-postgres-c"
+      DB_PORT: "5432"
+      DB_USER: "postgres"
+      DB_PASS: "postgrespassword"
+      DB_NAME: "l2_shard_db"
+      L1_ENDPOINT: "http://l1-node0:5000"
+    ports:
+      - "7002:7000"
+    networks:
+      - layer-1_l1-network
+    depends_on:
+      - l2-postgres-c
+
+  l2-postgres-c:
+    image: postgres:14
+    container_name: l2-postgres-c
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: l2_shard_db
+    volumes:
+      - l2-postgres-data-c:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - layer-1_l1-network
+
+  l2-shard-d:
+    build: .
+    container_name: l2-shard-d
+    environment:
+      SHARD_ID: "shard-d"
+      CLIENT_GROUP: "group-d"
+      L2_NODE_ID: "l2-node-d"
+      HTTP_PORT: "7000"
+      DB_HOST: "l2-postgres-d"
+      DB_PORT: "5432"
+      DB_USER: "postgres"
+      DB_PASS: "postgrespassword"
+      DB_NAME: "l2_shard_db"
+      L1_ENDPOINT: "http://l1-node0:5000"
+    ports:
+      - "7003:7000"
+    networks:
+      - layer-1_l1-network
+    depends_on:
+      - l2-postgres-d
+
+  l2-postgres-d:
+    image: postgres:14
+    container_name: l2-postgres-d
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: l2_shard_db
+    volumes:
+      - l2-postgres-data-d:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    networks:
+      - layer-1_l1-network
+
 networks:
   layer-1_l1-network:
     external: true
@@ -76,3 +146,5 @@ networks:
 volumes:
   l2-postgres-data-a:
   l2-postgres-data-b:
+  l2-postgres-data-c:
+  l2-postgres-data-d:

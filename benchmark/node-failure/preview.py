@@ -16,13 +16,41 @@ print()
 # Load data
 df = pd.read_csv(latest_csv)
 
-# Filter only successful requests
-df = df[df['Success'] == 'true'].copy()
-df['Latency_ms'] = pd.to_numeric(df['Latency_ms'])
+# Debug: Print initial info
+print("=" * 70)
+print("DEBUG INFO")
+print("=" * 70)
+print(f"Total rows: {len(df)}")
+print(f"Columns: {df.columns.tolist()}")
+print(f"Success values: {df['Success'].unique()}")
+print(f"Phases: {df['Phase'].unique()}")
+print()
+
+# Filter only successful requests - handle both string and boolean
+df_filtered = df[df['Success'].astype(str).str.lower() == 'true'].copy()
+print(f"Rows after filtering for success: {len(df_filtered)}")
+print()
+
+if len(df_filtered) == 0:
+    print("❌ No successful requests found in the CSV!")
+    print("First few rows of raw data:")
+    print(df.head(10))
+    exit(1)
+
+# Convert Latency_ms to numeric
+df_filtered['Latency_ms'] = pd.to_numeric(df_filtered['Latency_ms'], errors='coerce')
 
 # Separate phases
-baseline = df[df['Phase'] == 'baseline']
-failed = df[df['Phase'] == 'node-failed']
+baseline = df_filtered[df_filtered['Phase'] == 'baseline'].copy()
+failed = df_filtered[df_filtered['Phase'] == 'node-failed'].copy()
+
+print(f"Baseline rows: {len(baseline)}")
+print(f"Node-failed rows: {len(failed)}")
+print()
+
+if len(baseline) == 0 or len(failed) == 0:
+    print("❌ Missing data for one or both phases!")
+    exit(1)
 
 # Calculate statistics by step
 baseline_stats = baseline.groupby('Step')['Latency_ms'].agg(['mean', 'std', 'min', 'max'])
@@ -41,7 +69,7 @@ print("=" * 70)
 print(failed_stats.round(2))
 print()
 
-# Calculate overall averages
+# Calculate overall averages per iteration
 baseline_total = baseline.groupby('Iteration')['Latency_ms'].sum().mean()
 failed_total = failed.groupby('Iteration')['Latency_ms'].sum().mean()
 
@@ -63,70 +91,70 @@ print(f"  Node Failed:  {failed_commit.mean():.2f} ms")
 print(f"  Impact:       +{((failed_commit.mean() - baseline_commit.mean()) / baseline_commit.mean() * 100):.1f}%")
 print()
 
-# Create visualization
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+# Create simplified visualization - clean bar chart comparison
+fig, ax = plt.subplots(figsize=(10, 6))
 
-# Plot 1: Bar chart comparison
-steps = baseline_stats.index
-x = range(len(steps))
-width = 0.35
+# Calculate statistics
+baseline_mean = baseline_commit.mean()
+failed_mean = failed_commit.mean()
+baseline_std = baseline_commit.std()
+failed_std = failed_commit.std()
 
-ax1 = axes[0]
-bars1 = ax1.bar([i - width/2 for i in x], baseline_stats['mean'], width, 
-        label='Baseline (4 nodes)', color='#2ecc71', alpha=0.8)
-bars2 = ax1.bar([i + width/2 for i in x], failed_stats['mean'], width,
-        label='Node Failed (3 nodes)', color='#e74c3c', alpha=0.8)
+# Create bar chart
+x = [1, 2]
+means = [baseline_mean, failed_mean]
+stds = [baseline_std, failed_std]
+colors = ['#2ecc71', '#e74c3c']
+labels = ['Baseline\n(4 nodes)', 'Node Failed\n(3 nodes)']
+
+bars = ax.bar(x, means, color=colors, alpha=0.7, width=0.5, edgecolor='black', linewidth=2)
+
+# Add error bars (standard deviation)
+ax.errorbar(x, means, yerr=stds, fmt='none', ecolor='#333333', 
+            capsize=10, capthick=2, linewidth=2, zorder=5)
 
 # Add value labels on bars
-for bar in bars1:
-    height = bar.get_height()
-    ax1.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.0f}', ha='center', va='bottom', fontsize=8)
-for bar in bars2:
-    height = bar.get_height()
-    ax1.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.0f}', ha='center', va='bottom', fontsize=8)
+for i, (bar, mean) in enumerate(zip(bars, means)):
+    ax.text(bar.get_x() + bar.get_width()/2., mean + stds[i] + 100,
+            f'{mean:.0f} ms', ha='center', va='bottom', 
+            fontsize=14, fontweight='bold')
+    
+    # Add mean markers
+    ax.plot(bar.get_x() + bar.get_width()/2., mean, 'D', 
+            color='black', markersize=12, zorder=6)
 
-ax1.set_xlabel('Workflow Step', fontsize=11)
-ax1.set_ylabel('Average Latency (ms)', fontsize=11)
-ax1.set_title('L1 Node Failure Impact - Latency Comparison', fontsize=13, fontweight='bold')
-ax1.set_xticks(x)
-ax1.set_xticklabels(steps, rotation=45, ha='right')
-ax1.legend(loc='upper left')
-ax1.grid(axis='y', alpha=0.3)
-ax1.set_ylim(bottom=0)  # Start from 0
+# Add impact annotation
+impact_pct = ((failed_mean - baseline_mean) / baseline_mean) * 100
+ax.text(1.5, max(means) + max(stds) + 400, f'+{impact_pct:.1f}% increase', 
+        ha='center', fontsize=14, fontweight='bold', 
+        bbox=dict(boxstyle='round,pad=0.8', facecolor='yellow', 
+                 edgecolor='black', linewidth=2, alpha=0.8))
 
-# Plot 2: Box plot for Commit Session
-ax2 = axes[1]
-box_data = [baseline_commit, failed_commit]
-bp = ax2.boxplot(box_data, labels=['Baseline\n(4 nodes)', 'Node Failed\n(3 nodes)'],
-                 patch_artist=True, notch=True)
+ax.set_ylabel('Commit Session Latency (ms)', fontsize=14, fontweight='bold')
+ax.set_title('L1 Node Failure Impact - Consensus Latency', fontsize=16, fontweight='bold')
+ax.set_xticks(x)
+ax.set_xticklabels(labels, fontsize=12)
+ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=1)
+ax.set_ylim(bottom=0, top=max(means) + max(stds) + 700)
 
-# Color the boxes
-colors = ['#2ecc71', '#e74c3c']
-for patch, color in zip(bp['boxes'], colors):
-    patch.set_facecolor(color)
-    patch.set_alpha(0.7)
-
-ax2.set_ylabel('Latency (ms)', fontsize=11)
-ax2.set_title('Commit Session Latency Distribution', fontsize=13, fontweight='bold')
-ax2.grid(axis='y', alpha=0.3)
-
-# Add mean markers
-means = [baseline_commit.mean(), failed_commit.mean()]
-ax2.plot([1, 2], means, 'D', color='black', markersize=8, label='Mean', zorder=3)
-ax2.legend()
+# Add legend
+from matplotlib.patches import Patch
+legend_elements = [
+    Patch(facecolor='#2ecc71', alpha=0.7, edgecolor='black', label='Healthy System'),
+    Patch(facecolor='#e74c3c', alpha=0.7, edgecolor='black', label='1 Node Failed'),
+    plt.Line2D([0], [0], marker='D', color='w', markerfacecolor='black', 
+               markersize=10, label='Mean Value')
+]
+ax.legend(handles=legend_elements, loc='upper left', fontsize=11, framealpha=0.9)
 
 plt.tight_layout()
 plt.savefig('node_failure_analysis.png', dpi=300, bbox_inches='tight')
 print(f"📈 Visualization saved: node_failure_analysis.png")
 print()
 
-# Success rate
-baseline_total_rows = len(baseline) / 6  # 6 steps per iteration
-failed_total_rows = len(failed) / 6
-baseline_iterations = int(baseline_total_rows)
-failed_iterations = int(failed_total_rows)
+# Success rate - count unique iterations per phase
+baseline_iterations = baseline['Iteration'].nunique()
+failed_iterations = failed['Iteration'].nunique()
 
 print("=" * 70)
 print("TEST VALIDATION")

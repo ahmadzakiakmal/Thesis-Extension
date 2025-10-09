@@ -259,9 +259,16 @@ func runWorkflow(client *HTTPClient) ([]WorkflowResult, string) {
 	// 2. Scan Package
 	start = time.Now()
 	endpoint := fmt.Sprintf("/session/%s/scan", sessionID)
-	_, err = client.GET(endpoint)
+	resp, err = client.POST(endpoint, map[string]interface{}{
+		"package_id": packageID,
+	})
 	if err != nil {
 		return results, fmt.Sprintf("Scan Package: %v", err)
+	}
+	// Read response body for validation
+	var scanResp map[string]interface{}
+	if err := UnmarshalBody(resp, &scanResp); err != nil {
+		return results, fmt.Sprintf("Scan Package (unmarshal): %v", err)
 	}
 	results = append(results, WorkflowResult{
 		Step:    "Scan Package",
@@ -273,12 +280,16 @@ func runWorkflow(client *HTTPClient) ([]WorkflowResult, string) {
 	// 3. Validate Package
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/validate", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"package_id": packageID,
 		"signature":  "sig_test_001",
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Validate Package: %v", err)
+	}
+	var validateResp map[string]interface{}
+	if err := UnmarshalBody(resp, &validateResp); err != nil {
+		return results, fmt.Sprintf("Validate Package (unmarshal): %v", err)
 	}
 	results = append(results, WorkflowResult{
 		Step:    "Validate Package",
@@ -290,12 +301,16 @@ func runWorkflow(client *HTTPClient) ([]WorkflowResult, string) {
 	// 4. Quality Check
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/qc", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"passed": true,
 		"issues": []string{},
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Quality Check: %v", err)
+	}
+	var qcResp map[string]interface{}
+	if err := UnmarshalBody(resp, &qcResp); err != nil {
+		return results, fmt.Sprintf("Quality Check (unmarshal): %v", err)
 	}
 	results = append(results, WorkflowResult{
 		Step:    "Quality Check",
@@ -307,11 +322,15 @@ func runWorkflow(client *HTTPClient) ([]WorkflowResult, string) {
 	// 5. Label Package
 	start = time.Now()
 	endpoint = fmt.Sprintf("/session/%s/label", sessionID)
-	_, err = client.POST(endpoint, map[string]interface{}{
+	resp, err = client.POST(endpoint, map[string]interface{}{
 		"courier_id": "CUR-001",
 	})
 	if err != nil {
 		return results, fmt.Sprintf("Label Package: %v", err)
+	}
+	var labelResp map[string]interface{}
+	if err := UnmarshalBody(resp, &labelResp); err != nil {
+		return results, fmt.Sprintf("Label Package (unmarshal): %v", err)
 	}
 	results = append(results, WorkflowResult{
 		Step:    "Label Package",

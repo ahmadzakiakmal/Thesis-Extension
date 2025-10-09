@@ -8,7 +8,7 @@ echo "════════════════════════�
 echo ""
 
 # Default values
-L1_NODES=4
+L1_NODES=16
 L2_NODES=1
 ITERATIONS=50
 L2_PORT=7000

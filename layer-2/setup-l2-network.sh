@@ -8,7 +8,7 @@ set -e
 # Default values
 NODE_COUNT=2
 BASE_HTTP_PORT=7000
-BASE_POSTGRES_PORT=5433
+BASE_POSTGRES_PORT=5600
 
 # Parse command line arguments
 while getopts "n:" opt; do

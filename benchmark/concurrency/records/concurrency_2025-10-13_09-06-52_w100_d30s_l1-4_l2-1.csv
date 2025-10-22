@@ -1,0 +1,2 @@
+L1_Nodes,L2_Nodes,Workers,Duration_s,Total_Requests,Successful,Failed,TPS,Avg_Latency_ms,Min_Latency_ms,Max_Latency_ms
+4,1,100,30,1142,1142,0,35.84,2698.00,60.00,16671.00

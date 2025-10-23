@@ -6,7 +6,7 @@ NODES ?= 2
 # Build Docker image
 build:
 	@echo "🔨 Building L2 Shard Docker image..."
-	docker build -t l2-shard:latest . --no-cache
+	@sudo docker build -t l2-shard:latest . --no-cache
 	@echo "✅ Build complete!"
 
 # Run the L2 network (with clean and build)
@@ -37,7 +37,7 @@ start:
 clean:
 	@echo "🧹 Cleaning up L2 environment..."
 	@docker-compose down -v 2>/dev/null || true
-	@docker rmi l2-shard:latest 2>/dev/null || true
+	@sudo docker rmi l2-shard:latest 2>/dev/null || true
 	@echo "✅ Cleanup complete!"
 
 # View logs
@@ -59,6 +59,6 @@ restart:
 rebuild:
 	@echo "🔨 Rebuilding L2 image..."
 	@docker-compose down
-	@docker build -t l2-shard:latest .
+	@sudo docker build -t l2-shard:latest .
 	@docker-compose up -d
 	@echo "✅ Rebuild complete!"

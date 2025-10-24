@@ -90,6 +90,8 @@ func (ws *WebServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L2 Shard - %s</title>
     <style>
         * {

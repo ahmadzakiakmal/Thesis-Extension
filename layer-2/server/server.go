@@ -90,46 +90,309 @@ func (ws *WebServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L2 Shard - %s</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #2c5aa0; margin-top: 0; }
-        .info { margin: 20px 0; }
-        .label { font-weight: bold; color: #555; }
-        .value { color: #333; margin-left: 10px; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .badge-success { background: #d4edda; color: #155724; }
-        .endpoints { margin-top: 30px; }
-        .endpoint { background: #f8f9fa; padding: 10px; margin: 8px 0; border-radius: 4px; font-family: monospace; }
-        .method { font-weight: bold; color: #007bff; margin-right: 10px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { 
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            border-bottom: 3px solid #11998e;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        h1 { 
+            color: #11998e;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .info-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #43e97b;
+        }
+        .info-card.shard {
+            border-left-color: #38f9d7;
+        }
+        .info-card h3 {
+            color: #333;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label { 
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+        .value { 
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: right;
+            word-break: break-all;
+        }
+        .badge { 
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-success { 
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .endpoints { 
+            margin-top: 40px;
+        }
+        .endpoints h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .endpoint-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .endpoint { 
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        .endpoint:hover {
+            background: #e9ecef;
+            border-color: #43e97b;
+            transform: translateX(5px);
+        }
+        .method { 
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            min-width: 50px;
+            text-align: center;
+        }
+        .method.get {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .method.post {
+            background: #d4edda;
+            color: #155724;
+        }
+        .endpoint-path {
+            color: #495057;
+            flex: 1;
+        }
+        .endpoint-desc {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%);
+            border-radius: 8px;
+            color: white;
+        }
+        .stat {
+            flex: 1;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔷 Layer 2 Shard Node</h1>
+        <div class="header">
+            <h1>
+                <span>&#x2B23;</span>
+                Layer 2 Shard Node
+            </h1>
+            <div class="subtitle">Independent Shard for Client Group-Based Data Processing</div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value">%s</div>
+                <div class="stat-label">Shard ID</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">%s</div>
+                <div class="stat-label">Client Group</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">%s</div>
+                <div class="stat-label">Uptime</div>
+            </div>
+        </div>
         
-        <div class="info">
-            <div><span class="label">Shard ID:</span><span class="value">%s</span></div>
-            <div><span class="label">Client Group:</span><span class="value">%s</span></div>
-            <div><span class="label">Status:</span><span class="badge badge-success">Active</span></div>
-            <div><span class="label">Uptime:</span><span class="value">%s</span></div>
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>&#x1F4CB; Shard Information</h3>
+                <div class="info-row">
+                    <span class="label">Shard ID:</span>
+                    <span class="value">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Client Group:</span>
+                    <span class="value">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Status:</span>
+                    <span class="badge badge-success">Active</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Architecture:</span>
+                    <span class="value">Sharded L2</span>
+                </div>
+            </div>
+
+            <div class="info-card shard">
+                <h3>&#x1F310; Operational Info</h3>
+                <div class="info-row">
+                    <span class="label">Layer:</span>
+                    <span class="value">L2</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Type:</span>
+                    <span class="value">Independent Shard</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Uptime:</span>
+                    <span class="value">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Consensus:</span>
+                    <span class="badge badge-info">None (Shard)</span>
+                </div>
+            </div>
         </div>
         
         <div class="endpoints">
-            <h3>Available Endpoints:</h3>
-            <div class="endpoint"><span class="method">GET</span>/info - Shard information</div>
-            <div class="endpoint"><span class="method">POST</span>/session/start - Create new session</div>
-            <div class="endpoint"><span class="method">GET</span>/session/:id/scan - Scan package</div>
-            <div class="endpoint"><span class="method">POST</span>/session/:id/validate - Validate package</div>
-            <div class="endpoint"><span class="method">POST</span>/session/:id/qc - Quality check</div>
-            <div class="endpoint"><span class="method">POST</span>/session/:id/label - Create shipping label</div>
-            <div class="endpoint"><span class="method">POST</span>/session/:id/commit - Commit to L1</div>
+            <h2>&#x1F4E1; API Endpoints</h2>
+            <div class="endpoint-grid">
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/info</span>
+                    <span class="endpoint-desc">Shard information</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/session/start</span>
+                    <span class="endpoint-desc">Create new session</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/session/:id/scan</span>
+                    <span class="endpoint-desc">Scan package</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/session/:id/validate</span>
+                    <span class="endpoint-desc">Validate package</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/session/:id/qc</span>
+                    <span class="endpoint-desc">Quality check</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/session/:id/label</span>
+                    <span class="endpoint-desc">Create shipping label</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/session/:id/commit</span>
+                    <span class="endpoint-desc">Commit to L1</span>
+                </div>
+            </div>
         </div>
     </div>
 </body>
 </html>
-	`, ws.shardID, ws.shardID, ws.clientGroup, uptime)
+	`,
+		ws.shardID,     // Title
+		ws.shardID,     // Stats bar - Shard ID
+		ws.clientGroup, // Stats bar - Client Group
+		uptime,         // Stats bar - Uptime
+		ws.shardID,     // Info card - Shard ID
+		ws.clientGroup, // Info card - Client Group
+		uptime,         // Operational info - Uptime
+	)
 
 	w.Write([]byte(html))
 }

@@ -3,14 +3,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 import glob
 import re
+import argparse
+import os
 
-# Find all CSV files in current directory
-csv_files = glob.glob('*.csv')
-if not csv_files:
-    print("❌ No CSV files found in current directory!")
+# Set up argument parser
+parser = argparse.ArgumentParser(description='Plot L1 consensus latency comparison for Byzantine fault tests')
+parser.add_argument('--dir', type=str, required=True,
+                   help='Directory containing Byzantine fault test CSV files')
+args = parser.parse_args()
+
+records_dir = args.dir
+
+# Check if directory exists
+if not os.path.exists(records_dir):
+    print(f"❌ Directory '{records_dir}' does not exist!")
     exit(1)
 
-print(f"📊 Found {len(csv_files)} configuration files")
+# Find all CSV files in specified directory
+csv_pattern = os.path.join(records_dir, '*.csv')
+csv_files = glob.glob(csv_pattern)
+if not csv_files:
+    print(f"❌ No CSV files found in directory: {records_dir}")
+    exit(1)
+
+print(f"📊 Found {len(csv_files)} configuration files in {records_dir}")
 print()
 
 # Dictionary to store results: {l1_nodes: {phase: [latencies]}}
@@ -107,8 +123,8 @@ for i, (phase, label, color) in enumerate(zip(phases, phase_labels, colors)):
 # Customize plot
 ax.set_xlabel('L1 Node Configuration', fontsize=13, fontweight='bold')
 ax.set_ylabel('L1 Consensus Latency (ms)', fontsize=13, fontweight='bold')
-ax.set_title('L1 Consensus Latency - Byzantine Fault Impact Across Node Configurations', 
-             fontsize=15, fontweight='bold', pad=20)
+# ax.set_title('L1 Consensus Latency - Byzantine Fault Impact Across Node Configurations', 
+#              fontsize=15, fontweight='bold', pad=20)
 
 # Set x-axis labels with fault tolerance info
 x_labels = []
@@ -128,9 +144,13 @@ ax.set_ylim(bottom=0)
 ax.axhline(y=0, color='black', linewidth=0.8)
 
 plt.tight_layout()
-output_file = 'l1_consensus_comparison_all_configs.png'
-plt.savefig(output_file, dpi=300, bbox_inches='tight')
-print(f"✅ Chart saved: {output_file}")
+output_png = os.path.join(records_dir, 'l1_consensus_comparison_all_configs.png')
+output_pdf = os.path.join(records_dir, 'l1_consensus_comparison_all_configs.pdf')
+plt.savefig(output_png, dpi=300, bbox_inches='tight')
+plt.savefig(output_pdf, bbox_inches='tight')
+print(f"✅ Charts saved:")
+print(f"   - {output_png}")
+print(f"   - {output_pdf}")
 print()
 
 # Print summary statistics

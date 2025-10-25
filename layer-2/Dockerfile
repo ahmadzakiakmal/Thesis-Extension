@@ -9,8 +9,8 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o l2-shard main.go
+# Build the binarye
+RUN CGO_ENABLED=0 GOOS=linux go build -o l2-shard .
 
 # Final stage
 FROM alpine:latest

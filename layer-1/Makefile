@@ -10,7 +10,7 @@ build:
 	@CGO_ENABLED=0 go build -o ./build/bin
 	@chmod +x ./build/bin
 	@echo "Building Docker image..."
-	@docker build -t l1-node:latest .
+	@sudo docker build -t l1-node:latest .
 	@echo "Build complete!"
 
 # Run the L1 network (with clean and build)
@@ -18,7 +18,7 @@ run: clean build
 	@echo "Setting up L1 BFT network with $(NODES) nodes..."
 	@./setup-l1-network.sh -n $(NODES)
 	@echo "Starting L1 network..."
-	@docker-compose up -d
+	@sudo docker-compose up -d
 	@echo ""
 	@echo "✅ L1 Network is running!"
 	@echo "   API Endpoints:"
@@ -39,7 +39,7 @@ start:
 		./setup-l1-network.sh -n $(NODES); \
 	fi
 	@echo "Starting L1 network..."
-	@docker-compose up -d
+	@sudo docker-compose up -d
 	@echo ""
 	@echo "✅ L1 Network is running!"
 	@echo "   API Endpoints:"
@@ -51,7 +51,7 @@ start:
 # Stop and clean everything
 clean:
 	@echo "Cleaning up L1 environment..."
-	@docker-compose down -v 2>/dev/null || true
+	@sudo docker-compose down -v 2>/dev/null || true
 	@sudo rm -rf node-config 2>/dev/null || true
 	@echo "Cleanup complete!"
 

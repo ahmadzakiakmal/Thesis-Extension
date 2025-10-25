@@ -130,29 +130,439 @@ func (ws *WebServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte("<h1>Layer 1 - Byzantine Fault Tolerant Consensus Node</h1>"))
-	w.Write([]byte("<p>Node ID: " + string(ws.node.NodeInfo().ID()) + "</p>"))
-	w.Write([]byte("<p>Type: BFT Consensus Layer</p>"))
-	w.Write([]byte("<p>Architecture: Sharded L2 + Unified L1</p>"))
-
+	// Collect node information
+	nodeID := string(ws.node.NodeInfo().ID())
 	rpcPort := extractPortFromAddress(ws.node.Config().RPC.ListenAddress)
-	rpcAddrHtml := fmt.Sprintf("<p>RPC Address: <a href=\"http://localhost:%s\">http://localhost:%s</a></p>", rpcPort, rpcPort)
-	w.Write([]byte(rpcAddrHtml))
+	p2pAddress := ws.node.Config().P2P.ListenAddress
 
-	// Add API documentation
-	apiDocs := `
-	<h2>L1 API Endpoints</h2>
-	<ul>
-		<li><strong>POST /l1/commit</strong> - Receive commits from L2 shards</li>
-		<li><strong>GET /l1/sessions/group/{group}</strong> - Get sessions by client group</li>
-		<li><strong>GET /l1/sessions/shard/{shard}</strong> - Get sessions by shard</li>
-		<li><strong>GET /l1/transaction/{hash}</strong> - Get transaction by hash</li>
-		<li><strong>GET /l1/status</strong> - Get L1 status</li>
-		<li><strong>GET /l1/shards</strong> - Get all registered shards</li>
-	</ul>
-	`
-	w.Write([]byte(apiDocs))
+	// Get node status
+	nodeStatus := "online"
+	if ws.node.ConsensusReactor().WaitSync() {
+		nodeStatus = "syncing"
+	}
+	if !ws.node.IsListening() {
+		nodeStatus = "offline"
+	}
+
+	// Get peer information
+	outboundPeers, inboundPeers, dialingPeers := ws.node.Switch().NumPeers()
+	totalPeers := outboundPeers + inboundPeers
+
+	// Get Tendermint status
+	var latestBlockHeight int64
+	var latestBlockTime string
+	var catchingUp bool
+	status, err := ws.cometBftRpcClient.Status(context.Background())
+	if err == nil {
+		latestBlockHeight = status.SyncInfo.LatestBlockHeight
+		latestBlockTime = status.SyncInfo.LatestBlockTime.Format("2006-01-02 15:04:05")
+		catchingUp = status.SyncInfo.CatchingUp
+	}
+
+	// Get ABCI info
+	var appVersion uint64
+	var lastBlockAppHash string
+	abciInfo, err := ws.cometBftRpcClient.ABCIInfo(context.Background())
+	if err == nil {
+		appVersion = abciInfo.Response.AppVersion
+		lastBlockAppHash = fmt.Sprintf("%X", abciInfo.Response.LastBlockAppHash)
+	}
+
+	uptime := time.Since(ws.startTime).Round(time.Second)
+
+	// Determine status badge class
+	statusBadge := "badge-success"
+	switch nodeStatus {
+	case "syncing":
+		statusBadge = "badge-warning"
+	case "offline":
+		statusBadge = "badge-danger"
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L1 Consensus Node - %s</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { 
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        h1 { 
+            color: #667eea;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .info-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .info-card.consensus {
+            border-left-color: #764ba2;
+        }
+        .info-card.network {
+            border-left-color: #f093fb;
+        }
+        .info-card h3 {
+            color: #333;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label { 
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+        .value { 
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: right;
+            word-break: break-all;
+        }
+        .value.truncate {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .badge { 
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-success { 
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .endpoints { 
+            margin-top: 40px;
+        }
+        .endpoints h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .endpoint-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .endpoint { 
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        .endpoint:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+        .method { 
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            min-width: 50px;
+            text-align: center;
+        }
+        .method.get {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .method.post {
+            background: #d4edda;
+            color: #155724;
+        }
+        .endpoint-path {
+            color: #495057;
+            flex: 1;
+        }
+        .endpoint-desc {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            border-radius: 8px;
+            color: white;
+        }
+        .stat {
+            flex: 1;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .rpc-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: #f0f3ff;
+            border-radius: 6px;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+        .rpc-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>&#x2B23;</span>
+                Layer 1 - Byzantine Fault Tolerant Consensus Node
+            </h1>
+            <div class="subtitle">Unified BFT Consensus Layer for Multi-Shard Architecture</div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value">%d</div>
+                <div class="stat-label">Block Height</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">%d</div>
+                <div class="stat-label">Total Peers</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">%s</div>
+                <div class="stat-label">Uptime</div>
+            </div>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>🆔 Node Information</h3>
+                <div class="info-row">
+                    <span class="label">Node ID:</span>
+                    <span class="value truncate" title="%s">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Status:</span>
+                    <span class="badge %s">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Architecture:</span>
+                    <span class="value">Sharded L2 + Unified L1</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">App Version:</span>
+                    <span class="value">%d</span>
+                </div>
+            </div>
+
+            <div class="info-card consensus">
+                <h3>⚡ Consensus Information</h3>
+                <div class="info-row">
+                    <span class="label">Latest Block:</span>
+                    <span class="value">%d</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Block Time:</span>
+                    <span class="value">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Catching Up:</span>
+                    <span class="badge %s">%t</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">App Hash:</span>
+                    <span class="value truncate" title="%s">%s</span>
+                </div>
+            </div>
+
+            <div class="info-card network">
+                <h3>🌐 Network Information</h3>
+                <div class="info-row">
+                    <span class="label">P2P Address:</span>
+                    <span class="value">%s</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Outbound Peers:</span>
+                    <span class="value">%d</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Inbound Peers:</span>
+                    <span class="value">%d</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Dialing Peers:</span>
+                    <span class="value">%d</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="http://localhost:%s" class="rpc-link">🔗 Access RPC Interface</a>
+        </div>
+        
+        <div class="endpoints">
+            <h2>📡 API Endpoints</h2>
+            <div class="endpoint-grid">
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/l1/commit</span>
+                    <span class="endpoint-desc">Receive commits from L2 shards</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/l1/sessions/group/{group}</span>
+                    <span class="endpoint-desc">Get sessions by client group</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/l1/sessions/shard/{shard}</span>
+                    <span class="endpoint-desc">Get sessions by shard ID</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/l1/transaction/{hash}</span>
+                    <span class="endpoint-desc">Get transaction details by hash</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/l1/status</span>
+                    <span class="endpoint-desc">Get L1 node status</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/l1/shards</span>
+                    <span class="endpoint-desc">Get all registered L2 shards</span>
+                </div>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/debug</span>
+                    <span class="endpoint-desc">Debug information and diagnostics</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+	`,
+		nodeID[:16]+"...", // For title
+		latestBlockHeight,
+		totalPeers,
+		uptime,
+		nodeID, nodeID[:16]+"...",
+		statusBadge, nodeStatus,
+		appVersion,
+		latestBlockHeight,
+		latestBlockTime,
+		func() string {
+			if catchingUp {
+				return "badge-warning"
+			}
+			return "badge-success"
+		}(),
+		catchingUp,
+		lastBlockAppHash, lastBlockAppHash[:16]+"...",
+		p2pAddress,
+		outboundPeers,
+		inboundPeers,
+		dialingPeers,
+		rpcPort,
+	)
+
+	w.Write([]byte(html))
 }
 
 // handleDebug provides L1 debugging information

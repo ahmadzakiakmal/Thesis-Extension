@@ -6,6 +6,7 @@ import numpy as np
 import os
 import glob
 import re
+import argparse
 from datetime import datetime
 
 def extract_config_from_filename(filename):
@@ -77,7 +78,7 @@ def load_concurrency_data(records_dir):
     
     return data
 
-def create_concurrency_analysis(data, output_dir='.'):
+def create_concurrency_analysis(data, output_dir):
     """Create the 2x2 concurrency analysis plot"""
     if not data:
         print("No data to plot!")
@@ -211,7 +212,18 @@ def create_concurrency_analysis(data, output_dir='.'):
     print("="*60)
 
 def main():
-    records_dir = './'
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Plot concurrency benchmark analysis')
+    parser.add_argument('--dir', type=str, required=True,
+                       help='Directory containing concurrency benchmark CSV files')
+    args = parser.parse_args()
+    
+    records_dir = args.dir
+    
+    # Check if directory exists
+    if not os.path.exists(records_dir):
+        print(f"❌ Directory '{records_dir}' does not exist!")
+        return 1
     
     print("="*60)
     print("CONCURRENCY BENCHMARK ANALYSIS")
@@ -224,17 +236,18 @@ def main():
     data = load_concurrency_data(records_dir)
     
     if not data:
-        print("❌ No valid concurrency data found!")
-        return
+        print(f"❌ No valid concurrency data found in directory: {records_dir}")
+        return 1
     
     print(f"✓ Loaded data for {len(data)} L2 configurations")
     print()
     
     # Create analysis plot
     print("📈 Creating concurrency analysis plot...")
-    create_concurrency_analysis(data)
+    create_concurrency_analysis(data, records_dir)
     
     print("\n✅ Analysis complete!")
+    return 0
 
 if __name__ == '__main__':
-    main()
+    exit(main())

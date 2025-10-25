@@ -107,8 +107,8 @@ for i, (phase, label, color) in enumerate(zip(phases, phase_labels, colors)):
 # Customize plot
 ax.set_xlabel('L1 Node Configuration', fontsize=13, fontweight='bold')
 ax.set_ylabel('L1 Consensus Latency (ms)', fontsize=13, fontweight='bold')
-ax.set_title('L1 Consensus Latency - Byzantine Fault Impact Across Node Configurations', 
-             fontsize=15, fontweight='bold', pad=20)
+# ax.set_title('L1 Consensus Latency - Byzantine Fault Impact Across Node Configurations', 
+#              fontsize=15, fontweight='bold', pad=20)
 
 # Set x-axis labels with fault tolerance info
 x_labels = []

@@ -22,6 +22,47 @@ type WebServer struct {
 	clientGroup     string
 }
 
+// withCORS wraps a handler, adds CORS headers, and answers preflight globally.
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+
+		// If you are NOT using credentials (cookies/Authorization in "include" mode), "*" is fine:
+		if origin == "" {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		} else {
+			// If you might use credentials later, prefer echoing specific origin:
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
+		// Vary so caches don't mix responses across origins/methods/headers
+		w.Header().Set("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+
+		// Methods you support
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+		// Echo requested headers (fallback to common ones)
+		reqHdrs := r.Header.Get("Access-Control-Request-Headers")
+		if reqHdrs == "" {
+			reqHdrs = "Content-Type, Authorization"
+		}
+		w.Header().Set("Access-Control-Allow-Headers", reqHdrs)
+
+		// If you plan to send cookies/credentials from the browser, uncomment these two lines
+		// and DO NOT use "*" for Allow-Origin; you must echo the real origin.
+		// w.Header().Set("Access-Control-Allow-Credentials", "true")
+		// w.Header().Set("Access-Control-Allow-Origin", origin)
+
+		// Preflight: return 200 OK and stop.
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // NewWebServer creates a new L2 web server
 func NewWebServer(httpPort string, serviceRegistry *srvreg.ServiceRegistry, shardID, clientGroup string) *WebServer {
 	mux := http.NewServeMux()
@@ -30,7 +71,7 @@ func NewWebServer(httpPort string, serviceRegistry *srvreg.ServiceRegistry, shar
 		httpAddr: ":" + httpPort,
 		server: &http.Server{
 			Addr:    ":" + httpPort,
-			Handler: mux,
+			Handler: withCORS(mux),
 		},
 		serviceRegistry: serviceRegistry,
 		startTime:       time.Now(),

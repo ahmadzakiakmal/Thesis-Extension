@@ -606,7 +606,7 @@ func (ws *WebServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(html))
 }
 
-// handleDebug provides L1 debugging information
+// handleDebug provides L1 debugging information with complete stats
 func (ws *WebServer) handleDebug(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -621,41 +621,85 @@ func (ws *WebServer) handleDebug(w http.ResponseWriter, r *http.Request) {
 		nodeStatus = "offline"
 	}
 
-	debugInfo := map[string]interface{}{
-		"layer":        "L1",
-		"type":         "Byzantine Fault Tolerant",
-		"node_id":      string(ws.node.NodeInfo().ID()),
-		"node_status":  nodeStatus,
-		"p2p_address":  ws.node.Config().P2P.ListenAddress,
-		"rpc_address":  ws.node.Config().RPC.ListenAddress,
-		"uptime":       time.Since(ws.startTime).String(),
-		"architecture": "Sharded L2 + Unified L1",
+	// Get peer information
+	outboundPeers, inboundPeers, dialingPeers := ws.node.Switch().NumPeers()
+	totalPeers := outboundPeers + inboundPeers
+
+	// Get Tendermint status
+	var latestBlockHeight int64
+	var latestBlockTime string
+	var catchingUp bool
+	status, err := ws.cometBftRpcClient.Status(context.Background())
+	if err == nil {
+		latestBlockHeight = status.SyncInfo.LatestBlockHeight
+		latestBlockTime = status.SyncInfo.LatestBlockTime.Format(time.RFC3339)
+		catchingUp = status.SyncInfo.CatchingUp
 	}
 
-	// Get consensus info
-	status, err := ws.cometBftRpcClient.Status(context.Background())
-	outboundPeers, inboundPeers, dialingPeers := ws.node.Switch().NumPeers()
-	debugInfo["num_peers_out"] = outboundPeers
-	debugInfo["num_peers_in"] = inboundPeers
-	debugInfo["num_peers_dialing"] = dialingPeers
+	// Get ABCI info
+	var appVersion uint64
+	var lastBlockAppHash string
+	abciInfo, abciErr := ws.cometBftRpcClient.ABCIInfo(context.Background())
+	if abciErr == nil {
+		appVersion = abciInfo.Response.AppVersion
+		lastBlockAppHash = fmt.Sprintf("%X", abciInfo.Response.LastBlockAppHash)
+	}
 
+	uptime := time.Since(ws.startTime).Round(time.Second).String()
+	uptimeSeconds := int(time.Since(ws.startTime).Seconds())
+
+	// Get validator information
+	var validatorCount int
+	var validators []map[string]interface{}
+	validatorsResp, validatorsErr := ws.cometBftRpcClient.Validators(context.Background(), nil, nil, nil)
+	if validatorsErr == nil {
+		validatorCount = validatorsResp.Total
+		for _, val := range validatorsResp.Validators {
+			validators = append(validators, map[string]interface{}{
+				"address":      val.Address.String(),
+				"voting_power": val.VotingPower,
+			})
+		}
+	}
+
+	debugInfo := map[string]interface{}{
+		// Basic info
+		"layer":          "L1",
+		"type":           "Byzantine Fault Tolerant",
+		"node_id":        string(ws.node.NodeInfo().ID()),
+		"node_status":    nodeStatus,
+		"architecture":   "Sharded L2 + Unified L1",
+		"uptime":         uptime,
+		"uptime_seconds": uptimeSeconds,
+
+		// Network info
+		"p2p_address":       ws.node.Config().P2P.ListenAddress,
+		"rpc_address":       ws.node.Config().RPC.ListenAddress,
+		"num_peers_total":   totalPeers,
+		"num_peers_out":     outboundPeers,
+		"num_peers_in":      inboundPeers,
+		"num_peers_dialing": dialingPeers,
+
+		// Consensus info
+		"block_height":      latestBlockHeight,
+		"latest_block_time": latestBlockTime,
+		"catching_up":       catchingUp,
+
+		// ABCI info
+		"app_version":         appVersion,
+		"last_block_app_hash": lastBlockAppHash,
+
+		// Validator info
+		"validator_count": validatorCount,
+		"validators":      validators,
+	}
+
+	// Add errors if any
 	if err != nil {
 		debugInfo["consensus_error"] = err.Error()
-	} else {
-		debugInfo["latest_block_height"] = status.SyncInfo.LatestBlockHeight
-		debugInfo["latest_block_time"] = status.SyncInfo.LatestBlockTime
-		debugInfo["catching_up"] = status.SyncInfo.CatchingUp
 	}
-
-	// Add ABCI info
-	abciInfo, err := ws.cometBftRpcClient.ABCIInfo(context.Background())
-	if err != nil {
-		debugInfo["abci_error"] = err.Error()
-	} else {
-		debugInfo["abci_version"] = abciInfo.Response.Version
-		debugInfo["app_version"] = abciInfo.Response.AppVersion
-		debugInfo["last_block_height"] = abciInfo.Response.LastBlockHeight
-		debugInfo["last_block_app_hash"] = fmt.Sprintf("%X", abciInfo.Response.LastBlockAppHash)
+	if abciErr != nil {
+		debugInfo["abci_error"] = abciErr.Error()
 	}
 
 	w.Header().Set("Content-Type", "application/json")

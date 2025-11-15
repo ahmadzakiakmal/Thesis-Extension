@@ -181,7 +181,25 @@ func (sr *ServiceRegistry) ValidatePackageHandler(req *Request) (*Response, erro
 		}, nil
 	}
 
-	pkg, dbErr := sr.repository.ValidatePackage(body.Signature, body.PackageID, sessionID)
+	// Get the package first to retrieve its stored signature
+	pkg, dbErr := sr.repository.GetPackageByID(body.PackageID)
+	if dbErr != nil {
+		statusCode := http.StatusInternalServerError
+		if dbErr.Code == "NOT_FOUND" {
+			statusCode = http.StatusNotFound
+		}
+		return &Response{
+			StatusCode: statusCode,
+			Headers:    defaultHeaders,
+			Body:       fmt.Sprintf(`{"error":"%s"}`, dbErr.Message),
+		}, nil
+	}
+
+	// Simple PoC: Compare signatures
+	isValid := body.Signature == pkg.Signature
+
+	// Update package validation status
+	pkg, dbErr = sr.repository.ValidatePackage(isValid, body.PackageID, sessionID)
 	if dbErr != nil {
 		statusCode := http.StatusInternalServerError
 		if dbErr.Code == "NOT_FOUND" {
@@ -197,6 +215,22 @@ func (sr *ServiceRegistry) ValidatePackageHandler(req *Request) (*Response, erro
 	supplierName := "Unknown"
 	if pkg.Supplier != nil {
 		supplierName = pkg.Supplier.Name
+	}
+
+	// Return appropriate response based on validation result
+	if !isValid {
+		return &Response{
+			StatusCode: http.StatusUnauthorized,
+			Headers:    defaultHeaders,
+			Body: fmt.Sprintf(`{
+				"error":"Invalid signature",
+				"message":"Signature validation failed",
+				"package_id":"%s",
+				"supplier":"%s",
+				"is_trusted":false,
+				"status":"%s"
+			}`, pkg.ID, supplierName, pkg.Status),
+		}, nil
 	}
 
 	return &Response{

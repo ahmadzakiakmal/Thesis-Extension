@@ -261,8 +261,8 @@ func (r *Repository) ScanPackage(sessionID, packageID string) (*models.Package, 
 	return &pkg, nil
 }
 
-// ValidatePackage validates package signature
-func (r *Repository) ValidatePackage(signature, packageID, sessionID string) (*models.Package, *RepositoryError) {
+// ValidatePackage validates package and updates its status
+func (r *Repository) ValidatePackage(isValid bool, packageID, sessionID string) (*models.Package, *RepositoryError) {
 	dbTx := r.db.Begin()
 
 	var pkg models.Package
@@ -283,9 +283,14 @@ func (r *Repository) ValidatePackage(signature, packageID, sessionID string) (*m
 		}
 	}
 
-	// For PoC, assume all signatures are valid
-	pkg.IsTrusted = true
-	pkg.Status = "validated"
+	// Update package based on validation result
+	if isValid {
+		pkg.IsTrusted = true
+		pkg.Status = "validated"
+	} else {
+		pkg.IsTrusted = false
+		pkg.Status = "validation_failed"
+	}
 	pkg.SessionID = &sessionID
 
 	if err := dbTx.Save(&pkg).Error; err != nil {
@@ -493,4 +498,27 @@ func (r *Repository) MarkSessionCommitted(sessionID, txHash string, blockHeight 
 	}
 
 	return nil
+}
+
+// GetPackageByID retrieves a package by ID
+func (r *Repository) GetPackageByID(packageID string) (*models.Package, *RepositoryError) {
+	var pkg models.Package
+	err := r.db.Preload("Items").Preload("Supplier").Where("package_id = ?", packageID).First(&pkg).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &RepositoryError{
+				Code:    "NOT_FOUND",
+				Message: "Package not found",
+				Detail:  fmt.Sprintf("Package %s does not exist", packageID),
+			}
+		}
+		return nil, &RepositoryError{
+			Code:    "DATABASE_ERROR",
+			Message: "Database error",
+			Detail:  err.Error(),
+		}
+	}
+
+	return &pkg, nil
 }
